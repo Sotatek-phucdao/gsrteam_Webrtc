@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebRTC RTSP Viewer</title>
+</head>
+<body>
+  <h3>Stream từ GStreamer</h3>
+  <video id="video" autoplay playsinline controls></video>
+
+  <script>
+    const ws = new WebSocket("ws://172.23.201.85:9001");
+    const pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: "stun:stun.l.google.com:19302" },
+        {
+          urls: "turn:172.23.201.85:3478?transport=udp",
+          username: "webrtc",
+          credential: "webrtc"
+        }
+      ]
+    });
+
+    
+    // ✅ Nhận track video/audio từ server
+    pc.ontrack = (event) => {
+      console.log("Track received");
+      console.log("📺 Received track:", event.track.kind);
+      document.getElementById("video").srcObject = event.streams[0];
+      const video = document.getElementById("video");
+      if (event.streams[0].getVideoTracks().length > 0) {
+        video.srcObject = event.streams[0];
+        video.onloadedmetadata = () => {
+          video.play().catch(e => console.error("🔴 Play failed:", e));
+        };
+  } else {
+    console.warn("⚠️ No video track received");
+  }
+    };
+
+    // ✅ Gửi ICE candidate về server
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        ws.send(JSON.stringify({
+          type: "ice",
+          sdpMLineIndex: event.candidate.sdpMLineIndex,
+          candidate: event.candidate.candidate
+        }));
+      }
+    };
+
+    // ✅ Nhận SDP offer hoặc ICE từ server
+    ws.onmessage = async ({ data }) => {
+      const msg = JSON.parse(data);
+
+      if (msg.type === "sdp") {
+        console.log("📥 Received SDP offer");
+        await pc.setRemoteDescription(new RTCSessionDescription({
+          type: "offer",
+          sdp: msg.sdp
+        }));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        ws.send(JSON.stringify({
+          type: "sdp",
+          sdp: answer.sdp
+        }));
+      } else if (msg.type === "ice") {
+        console.log("📥 Received ICE candidate");
+        try {
+          const candidate = new RTCIceCandidate({
+            candidate: msg.candidate,
+            sdpMLineIndex: msg.sdpMLineIndex,
+          });
+          await pc.addIceCandidate(candidate);
+        } catch (e) {
+          console.error("❌ Error adding ICE candidate:", e);
+        }
+      }
+    };
+
+    ws.onopen = () => {
+      console.log("✅ WebSocket connected.");
+    };
+  </script>
+</body>
+</html>
