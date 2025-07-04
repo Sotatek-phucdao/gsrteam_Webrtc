@@ -1,0 +1,1 @@
+-I"C:/msys64/mingw64/include/libsoup-3.0" -I"C:/msys64/mingw64/include/glib-2.0" -I"C:/msys64/mingw64/lib/glib-2.0/include" -I"C:/msys64/mingw64/include/gstreamer-1.0" -I"C:/msys64/mingw64/include/gstreamer-1.0/gst/webrtc" -I"C:/msys64/mingw64/include/json-glib-1.0"

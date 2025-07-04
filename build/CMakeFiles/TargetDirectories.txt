@@ -1,0 +1,3 @@
+D:/MinGW64/Intern_Embeded2/VMS/webrtc/build/CMakeFiles/simple_server.dir
+D:/MinGW64/Intern_Embeded2/VMS/webrtc/build/CMakeFiles/edit_cache.dir
+D:/MinGW64/Intern_Embeded2/VMS/webrtc/build/CMakeFiles/rebuild_cache.dir

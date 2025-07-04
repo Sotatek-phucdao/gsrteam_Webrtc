@@ -1,0 +1,43 @@
+#stats {
+  font-family: monospace;
+  margin-top: 10px;
+  background: #222;
+  color: #eee;
+  padding: 16px 24px;
+  border-radius: 8px;
+  width: fit-content;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+#stats p {
+  margin: 6px 0;
+  font-size: 1.05em;
+}
+#stats strong {
+  color: #7ecfff;
+  min-width: 80px;
+  display: inline-block;
+}
+video {
+  width: 640px;
+  height: auto;
+  background: black;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+body {
+  background: #181c20;
+  color: #eee;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+h3 {
+  margin-top: 32px;
+  margin-bottom: 18px;
+  color: #7ecfff;
+  letter-spacing: 1px;
+}

@@ -1,0 +1,1 @@
+ -lsoup-3.0 -lgio-2.0 -lglib-2.0 -lgobject-2.0 -lintl -lgstreamer-1.0 -lgstbase-1.0 -lgstsdp-1.0 -lgstwebrtc-1.0 -lx264 -lgstapp-1.0 -lgstaudio-1.0 -lgstvideo-1.0 -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 

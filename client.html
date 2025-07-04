@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebRTC RTSP Viewer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h3>Stream từ GStreamer</h3>
+  <video id="video" autoplay playsinline controls></video>
+
+  <div id="stats">
+    <p><strong>Latency:</strong> <span id="latency">-</span> ms</p>
+    <p><strong>FPS:</strong> <span id="fps">-</span></p>
+    <p><strong>Bitrate:</strong> <span id="bitrate">-</span> kbps</p>
+    <p><strong>CPU:</strong> <span id="cpu">-</span>%</p>
+    <p><strong>RAM:</strong> <span id="ram">-</span> MB</p>
+  </div>
+
+  <script>
+    const video = document.getElementById("video");
+    const ws = new WebSocket("ws://127.0.0.1:8080/ws");
+
+    const pc = new RTCPeerConnection({
+      iceServers: []
+    });
+
+    let frames = 0;
+    let lastFrameTime = performance.now();
+    let lastBytesReceived = 0;
+    let lastBitrateTimestamp = performance.now();
+
+    // FPS bằng requestAnimationFrame
+    function updateFPS() {
+      frames++;
+      const now = performance.now();
+      if (now - lastFrameTime >= 1000) {
+        const fps = frames;
+        document.getElementById("fps").innerText = fps;
+        frames = 0;
+        lastFrameTime = now;
+      }
+      requestAnimationFrame(updateFPS);
+    }
+    requestAnimationFrame(updateFPS);
+
+    // Gửi ICE về server
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        ws.send(JSON.stringify({
+          type: "ice",
+          sdpMLineIndex: event.candidate.sdpMLineIndex,
+          candidate: event.candidate.candidate
+        }));
+      }
+    };
+
+    // Nhận track media
+    pc.ontrack = (event) => {
+      console.log("📺 Received track:", event.track.kind);
+      if (event.streams[0].getVideoTracks().length > 0) {
+        video.srcObject = event.streams[0];
+        video.onloadedmetadata = () => {
+          video.play().catch(e => console.error("🔴 Play failed:", e));
+        };
+      }
+    };
+
+    // WebSocket nhận SDP hoặc ICE
+    ws.onmessage = async ({ data }) => {
+      const msg = JSON.parse(data);
+
+      if (msg.type === "sdp") {
+        console.log("📥 Received SDP offer");
+        await pc.setRemoteDescription(new RTCSessionDescription({
+          type: "offer",
+          sdp: msg.sdp
+        }));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        ws.send(JSON.stringify({
+          type: "sdp",
+          sdp: answer.sdp
+        }));
+
+        // Bắt đầu thu thống kê sau khi kết nối
+        startStatsCollection();
+      } else if (msg.type === "ice") {
+        console.log("📥 Received ICE candidate");
+        try {
+          const candidate = new RTCIceCandidate({
+            candidate: msg.candidate,
+            sdpMLineIndex: msg.sdpMLineIndex,
+          });
+          await pc.addIceCandidate(candidate);
+        } catch (e) {
+          console.error("❌ Error adding ICE candidate:", e);
+        }
+      }
+    };
+
+    ws.onopen = () => {
+      console.log("✅ WebSocket connected.");
+    };
+
+    // Lấy thống kê WebRTC + RAM/CPU
+    function startStatsCollection() {
+      setInterval(async () => {
+        const stats = await pc.getStats(null);
+        stats.forEach(report => {
+          if (report.type === "inbound-rtp" && report.kind === "video") {
+            if (report.framesPerSecond)
+              document.getElementById("fps").innerText = report.framesPerSecond.toFixed(1);
+
+            if (report.roundTripTime)
+              document.getElementById("latency").innerText = (report.roundTripTime * 1000).toFixed(2);
+
+            // Bitrate calculation
+            if (typeof report.bytesReceived !== "undefined") {
+              const now = performance.now();
+              if (lastBytesReceived !== 0) {
+                const bytes = report.bytesReceived - lastBytesReceived;
+                const duration = (now - lastBitrateTimestamp) / 1000; // seconds
+                if (duration > 0) {
+                  const bitrateKbps = ((bytes * 8) / 1000 / duration).toFixed(1);
+                  document.getElementById("bitrate").innerText = bitrateKbps;
+                }
+              }
+              lastBytesReceived = report.bytesReceived;
+              lastBitrateTimestamp = now;
+            }
+          }
+        });
+
+        // RAM (chỉ Chrome)
+        if (performance.memory) {
+          const ramUsedMB = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1);
+          document.getElementById("ram").innerText = ramUsedMB;
+        } else {
+          document.getElementById("ram").innerText = "N/A";
+        }
+
+        // CPU sơ bộ (dựa trên số frame cập nhật mỗi giây)
+        const cpuLoad = Math.min(100, Math.round((frames / 60) * 100));
+        document.getElementById("cpu").innerText = cpuLoad;
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
+
